@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import pydot
+#import importlib
+
 
 from matplotlib import cm
 from sklearn.model_selection import train_test_split
@@ -23,6 +25,8 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import IsolationForest
 #from sklearn.externals.six import StringIO
+#importlib.import_module('MSIASolver')
+import MSIASolver
 
 train = pd.read_csv('train.csv')
 kaggle = pd.read_csv('test.csv')
@@ -31,6 +35,14 @@ kaggle = pd.read_csv('test.csv')
 PassengerId_train = train['PassengerId'].tolist()
 PassengerId = kaggle['PassengerId'].tolist()
 
+
+#fonction utile pour le débugging
+def p(mess,obj):
+    """Useful function for tracing"""
+    if hasattr(obj,'shape'):
+        print(mess,type(obj),obj.shape,"\n",obj)
+    else:
+        print(mess,type(obj),"\n",obj)
 
 def dprint(**kwargs):
     if kwargs is not None:
@@ -134,7 +146,7 @@ def visu_isolation_tree(Axis_1,Axis_2,label,color):
     plt.show()
     
 
-visu = clean_visu(train)
+visu = clean_visu(train.copy())
 print('visu',type(visu),"\n",visu.describe())
 #visu_isolation_tree(visu['Age'],visu['Fare'])
 
@@ -157,9 +169,9 @@ def pair_grid_visu(data):
     g = g.add_legend()
 
 #visu.plot()
-visu.boxplot()
-visu.hist()
-pair_grid_visu(visu)
+#visu.boxplot()
+#visu.hist()
+#pair_grid_visu(visu)
 #%%
 #calcul et affichage des facteurs de corrélation des variables
 methods = ['pearson', 'kendall', 'spearman']
@@ -263,6 +275,7 @@ X_cols.extend(liste_titles_onehot)
 print('Colonnes sélectionnées = '+"\n",X_cols,"\n")
 
 #création des tableaux d'entrainement et de cible, des tableaux de validation intermédiaire et le tableau à prédire au final
+print(train.columns)
 X = train[X_cols]
 y = train['Survived']
 X_kaggle = kaggle[X_cols]
@@ -331,6 +344,7 @@ X_train = scaler.transform(X_train)
 X_test = scaler.transform(X_test)
 X_kaggle = scaler.transform(X_kaggle)
 
+rng = np.random.randint(100)
 names = [
         'Logistic Regression',
         'Decision Tree',
@@ -345,7 +359,8 @@ names = [
         'RandomForestClassifier',
         'AdaBoostClassifier',
         'ExtraTreesClassifier',
-        'IsolationForest']
+        'IsolationForest',
+        'MSIASolver']
 classifier = [
         LogisticRegression(C=3),
         tree.DecisionTreeClassifier(),
@@ -359,8 +374,9 @@ classifier = [
         #GaussianProcessClassifier(1.0 * RBF(1.0)),
         RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
         AdaBoostClassifier(),
-        ExtraTreesClassifier(n_estimators=250,random_state=0),
-        IsolationForest(max_samples=100, random_state=rng)]
+        ExtraTreesClassifier(n_estimators=250,random_state=rng),
+        IsolationForest(max_samples=100, random_state=rng),
+        MSIASolver.MSIASolver()]
 
 #fonction de cross_validation
 best_clf = None
@@ -379,6 +395,8 @@ def run_kfold(clf, name, best_clf, best_score, best_clf_name, clf_results):
         y_train, y_test = y.values[train_index], y.values[test_index]
         clf.fit(X_train, y_train)
         predictions = clf.predict(X_test)
+        p('y_test',y_test)
+        p('predictions',predictions)
         accuracy = accuracy_score(y_test, predictions)
         outcomes.append(accuracy)
         print(name, " - Fold {0} accuracy: {1}".format(fold, accuracy))
