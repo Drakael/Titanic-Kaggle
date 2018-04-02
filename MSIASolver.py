@@ -220,7 +220,6 @@ class LinearRegression(MSIAClassifier):
     def predict(self, X):
         """Linear Regression Prediction
         """
-        print('Linear Regression Prediction')
         return self.linear_regression(self.predicted_thetas, X)
 
     def regression_cost(self, model, theta, X, Y):
