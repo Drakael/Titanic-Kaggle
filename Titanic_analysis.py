@@ -28,6 +28,8 @@ from sklearn.ensemble import IsolationForest
 #importlib.import_module('MSIASolver')
 import MSIASolver
 
+plt.close('all')
+
 train = pd.read_csv('train.csv')
 kaggle = pd.read_csv('test.csv')
 
@@ -172,7 +174,8 @@ def pair_grid_visu(data):
 #visu.boxplot()
 #visu.hist()
 #pair_grid_visu(visu)
-#%%
+
+
 #calcul et affichage des facteurs de corrélation des variables
 methods = ['pearson', 'kendall', 'spearman']
 correlation = train.corr(method='pearson')
@@ -275,74 +278,16 @@ X_cols.extend(liste_titles_onehot)
 print('Colonnes sélectionnées = '+"\n",X_cols,"\n")
 
 #création des tableaux d'entrainement et de cible, des tableaux de validation intermédiaire et le tableau à prédire au final
-print(train.columns)
-X = train[X_cols]
+
+X = train[X_cols].copy()
 y = train['Survived']
+
+
 X_kaggle = kaggle[X_cols]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
-
-print("\n",'X_train : ',"\n",type(X_train),"\n",X_train.describe(),"\n\n")
-#print(X_train.columns)
-X_train_columns = X_train.columns
-
-
-def plot_axis(X_train, X_test=None, axis_1=0, axis_2=1, predict=None, cmap=plt.cm.Blues_r):
-#    rng = np.random.RandomState(17)
-#    # fit the model
-#    clf = IsolationForest(max_samples=100, random_state=rng)
-#    clf.fit(X_train)
-#    y_pred_train = clf.predict(X_train)
-#    y_pred_test = clf.predict(X_test)
-#    
-#    # plot the line, the samples, and the nearest vectors to the plane
-#    xx, yy = np.meshgrid(np.linspace(X_train[axis_1].min(), X_train[axis_1].max(), len(X_train[axis_1].unique())), np.linspace(X_train[axis_2].min(), X_train[axis_2].max(), len(X_train[axis_2].unique())))
-#    print('xx',type(xx),"\n",xx)
-#    print('yy',type(yy),"\n",yy)
-#    Z = clf.decision_function(np.c_[xx.ravel(), yy.ravel()])
-#    Z = Z.reshape(xx.shape)
-    
-#    plt.title(axis_1+" / "+axis_2)
-#    #plt.contourf(xx, yy, Z, cmap=cmap)
-#    
-#    b1 = plt.scatter(X_train[axis_1], X_train[axis_2], c='white',
-#                     s=20, edgecolor='k')
-#    if X_test is not None:
-#        b2 = plt.scatter(X_test[axis_1], X_test[axis_2], c='green',
-#                         s=20, edgecolor='k')
-#    #c = plt.scatter(X_outliers[:, 0], X_outliers[:, 1], c='red',
-#    #                s=20, edgecolor='k')
-#    plt.axis('tight')
-#    plt.xlim((X_train[axis_1].min(), X_train[axis_1].max()))
-#    plt.ylim((X_train[axis_2].min(), X_train[axis_2].max()))
-#    plt.legend([b1, b2],
-#               [axis_1,axis_2],
-#               loc="upper left")
-    plt.figure()
-    plt.title(axis_1+" / "+axis_2)
-    sns.swarmplot(x=axis_1, y=axis_2, data=X_train, color="Blue")
-    if X_test is not None:
-        sns.swarmplot(x=axis_1, y=axis_2, data=X_test, color="Green")
-    plt.show()
-
-
-#for i, feature_1 in enumerate(correlation.keys()):
-#    for j, feature_2 in enumerate(correlation.keys()):
-#        if i>1 and j>1 and i is not j and feature_1 in X_cols and feature_2 in X_cols:
-#            print('i',i)
-#            print('j',j)
-#            print('feature_1',feature_1)
-#            print('feature_2',feature_2)
-#            plot_axis(X_train,X_test,feature_1,feature_2)
-            
-            
 
 #étalonnage des valeurs
 scaler = MinMaxScaler()
-scaler.fit(X_train)
-
-X_train = scaler.transform(X_train)
-X_test = scaler.transform(X_test)
-X_kaggle = scaler.transform(X_kaggle)
+scaler.fit(X)
 
 rng = np.random.randint(100)
 names = [
@@ -359,8 +304,8 @@ names = [
         'RandomForestClassifier',
         'AdaBoostClassifier',
         'ExtraTreesClassifier',
-        'IsolationForest',
-        'MSIASolver']
+        #'MSIASolver',
+        'IsolationForest']
 classifier = [
         LogisticRegression(C=3),
         tree.DecisionTreeClassifier(),
@@ -375,8 +320,12 @@ classifier = [
         RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
         AdaBoostClassifier(),
         ExtraTreesClassifier(n_estimators=250,random_state=rng),
-        IsolationForest(max_samples=100, random_state=rng),
-        MSIASolver.MSIASolver()]
+        #MSIASolver.MSIASolver(),
+        IsolationForest(max_samples=100, random_state=rng)]
+#names = ['MSIASolver']
+#classifier = [MSIASolver.MSIASolver()]
+#names = ['Logistic Regression']
+#classifier = [LogisticRegression(C=3)]
 
 #fonction de cross_validation
 best_clf = None
@@ -385,7 +334,7 @@ best_score = 0
 idx = 0
 #clf_results = pd.DataFrame([{'name':'','score':0} for x in range(10)])
 clf_results = pd.DataFrame(index=range(len(classifier)), columns=['name','score'])
-def run_kfold(clf, name, best_clf, best_score, best_clf_name, clf_results):
+def run_kfold(X, y, clf, name, best_clf, best_score, best_clf_name, clf_results):
     kf = KFold(891, n_folds=10)
     outcomes = []
     fold = 0
@@ -395,8 +344,6 @@ def run_kfold(clf, name, best_clf, best_score, best_clf_name, clf_results):
         y_train, y_test = y.values[train_index], y.values[test_index]
         clf.fit(X_train, y_train)
         predictions = clf.predict(X_test)
-        p('y_test',y_test)
-        p('predictions',predictions)
         accuracy = accuracy_score(y_test, predictions)
         outcomes.append(accuracy)
         print(name, " - Fold {0} accuracy: {1}".format(fold, accuracy))
@@ -412,9 +359,10 @@ def run_kfold(clf, name, best_clf, best_score, best_clf_name, clf_results):
     clf_results.at[idx,'score'] = mean_outcome
     return (best_clf, best_score, best_clf_name)
 
+
 #entrainement des différents classifieurs
 for name, clf in zip(names,classifier):
-    best_clf, best_score, best_clf_name = run_kfold(clf, name, best_clf, best_score, best_clf_name, clf_results)
+    best_clf, best_score, best_clf_name = run_kfold(X, y, clf, name, best_clf, best_score, best_clf_name, clf_results)
     idx+=1
 
 print('Résultats des classifieurs'+"\n")
@@ -460,11 +408,19 @@ clf_params['AdaBoostClassifier'] = {'n_estimators': [50, 25, 125],
 clf_params['ExtraTreesClassifier'] = {'n_estimators': [50, 150, 250],
               'criterion': ['gini','entropy']
              }
+clf_params['MSIASolver'] = {'max_iterations': [500, 2500, 5000],
+              'learning_rate': [0.3,0.4,0.5]
+             }
 
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 # Type of scoring used to compare parameter combinations
 acc_scorer = make_scorer(accuracy_score)
 # Run the grid search
 grid_obj = GridSearchCV(best_clf, clf_params[best_clf_name], scoring=acc_scorer)
+
+X_train = scaler.transform(X_train)
+X_test = scaler.transform(X_test)
+
 grid_obj = grid_obj.fit(X_train, y_train)
 # Set the clf to the best combination of parameters
 best_clf = grid_obj.best_estimator_
@@ -473,6 +429,11 @@ best_clf.fit(X_train, y_train)
 #création des prédictions pour la validation intermédiaire
 predictions = best_clf.predict(X_test)
 print("\n",'Accuracy on test set = ', accuracy_score(y_test, predictions))
+
+#predicted_thetas = best_clf.get_predicted_thetas()
+#print("\n",'predicted thetas on test set = ', predicted_thetas)
+#best_clf.coef_ = predicted_thetas[1:].reshape(1,predicted_thetas.shape[0]-1)
+#print("\n",'best_clf.coef_ ', best_clf.coef_)
 
 
 #création des prédictions sur l'échantillon à tester
@@ -487,7 +448,7 @@ output = output.set_index('PassengerId')
 kaggle['PassengerId'] = PassengerId
 kaggle['Survived'] = predictions
 
-
+X_train_columns = X.columns
 if hasattr(best_clf, 'feature_importances_') and hasattr(best_clf, 'estimators_'):
     importances = best_clf.feature_importances_
     #print('importances',"\n",importances)
@@ -510,6 +471,7 @@ if hasattr(best_clf, 'feature_importances_') and hasattr(best_clf, 'estimators_'
     
 if hasattr(best_clf, 'coef_'):
     importances = best_clf.coef_
+    print('importances',type(importances),importances.shape,importances)
     indices = np.argsort(importances)[::-1]
     for f in range(len(X_train_columns)):
         print("%d. %s (%f)" % (f + 1, X_train_columns[indices[0,f]], importances[0,indices[0,f]]))
